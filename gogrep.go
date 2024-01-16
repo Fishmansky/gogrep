@@ -33,6 +33,17 @@ func patternRegex(s string, p string) bool {
 	return false
 }
 
+func checkWith(f *os.File, str string, fn func(s string, p string) bool) {
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		if fn(scanner.Text(), str) {
+			fmt.Println(scanner.Text())
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		fmt.Fprintf(os.Stderr, "readinf standard input: %s", err)
+	}
+}
 func main() {
 	var regexStr string
 	flag.StringVar(&regexStr, "e", "", "find provided pattern")
@@ -47,27 +58,7 @@ func main() {
 		panic(err)
 	}
 	if regexStr != "" {
-		scanner := bufio.NewScanner(f)
-
-		for scanner.Scan() {
-			if patternRegex(scanner.Text(), regexStr) {
-				fmt.Println(scanner.Text())
-			}
-		}
-		if err := scanner.Err(); err != nil {
-			fmt.Fprintf(os.Stderr, "readinf standard input: %s", err)
-		}
-		return
+		checkWith(f, regexStr, patternRegex)
 	}
-
-	scanner := bufio.NewScanner(f)
-	for scanner.Scan() {
-		if pattern(scanner.Text(), args[0]) {
-			fmt.Println(scanner.Text())
-		}
-	}
-	if err := scanner.Err(); err != nil {
-		fmt.Fprintf(os.Stderr, "readinf standard input: %s", err)
-	}
-
+	checkWith(f, args[0], pattern)
 }
