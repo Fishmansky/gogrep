@@ -56,12 +56,14 @@ func main() {
 		fmt.Println(usage)
 		return
 	}
-	f, err := os.Open(flag.Args()[len(flag.Args())-1])
-	if err != nil {
-		panic(err)
+	for _, file := range flag.Args() {
+		f, err := os.Open(file)
+		if err != nil {
+			panic(err)
+		}
+		if regexStr != "" {
+			checkWith(f, regexStr, patternRegex)
+		}
+		checkWith(f, args[0], pattern)
 	}
-	if regexStr != "" {
-		checkWith(f, regexStr, patternRegex)
-	}
-	checkWith(f, args[0], pattern)
 }
