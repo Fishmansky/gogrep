@@ -8,7 +8,7 @@ import (
 	"regexp"
 )
 
-var usage = `usage: gogrep [-e pattern] [file ...]`
+var usage = `usage: gogrep [-i] [-e pattern] [file ...]`
 
 func pattern(s string, p string) bool {
 	c := 0
@@ -44,9 +44,12 @@ func checkWith(f *os.File, str string, fn func(s string, p string) bool) {
 		fmt.Fprintf(os.Stderr, "readinf standard input: %s", err)
 	}
 }
+
 func main() {
+	var caseIns bool
 	var regexStr string
 	flag.StringVar(&regexStr, "e", "", "find provided pattern")
+	flag.BoolVar(&caseIns, "i", false, "case-insensitive")
 	flag.Parse()
 	args := os.Args[1:]
 	if len(args) == 0 {
