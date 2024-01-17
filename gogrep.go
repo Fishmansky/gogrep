@@ -45,18 +45,19 @@ func checkWith(f *os.File, str string, fn func(s string, p string) bool) {
 	}
 }
 
+var caseIns bool
+var regexStr string
+
 func main() {
-	var caseIns bool
-	var regexStr string
 	flag.StringVar(&regexStr, "e", "", "find provided pattern")
 	flag.BoolVar(&caseIns, "i", false, "case-insensitive")
 	flag.Parse()
 	args := os.Args[1:]
-	if len(args) == 0 {
+	if len(args) < 2 {
 		fmt.Println(usage)
 		return
 	}
-	for _, file := range flag.Args() {
+	for _, file := range flag.Args()[1:] {
 		f, err := os.Open(file)
 		if err != nil {
 			panic(err)
