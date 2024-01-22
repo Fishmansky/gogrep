@@ -63,7 +63,7 @@ var caseMap = map[byte]byte{
 	'Z': 'z',
 }
 
-var usage = `usage: gogrep [-i] [-e pattern] [file ...]`
+var usage = `usage: gogrep [-i] [-e pattern | -f pattern file] [file ...]`
 
 func pattern(s string, p string) bool {
 	c := 0
