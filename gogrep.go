@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
+	"log"
 	"os"
 	"regexp"
 )
@@ -112,11 +113,11 @@ func checkWith(f *os.File, str string, fn func(s string, p string) bool) {
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
 		if fn(scanner.Text(), str) {
-			fmt.Println(scanner.Text())
+			fmt.Printf("%s:%s\n", f.Name(), scanner.Text())
 		}
 	}
 	if err := scanner.Err(); err != nil {
-		fmt.Fprintf(os.Stderr, "readinf standard input: %s", err)
+		fmt.Fprintf(os.Stderr, "gogrep: %s\n", err)
 	}
 }
 
@@ -129,45 +130,47 @@ func main() {
 	flag.StringVar(&patternFileStr, "f", "", "specify input file with patterns")
 	flag.BoolVar(&caseIns, "i", false, "case-insensitive")
 	flag.Parse()
-	args := os.Args[1:]
-	if len(args) < 2 {
+	if len(flag.Args()) < 1 {
 		fmt.Println(usage)
 		return
 	}
-	if patternFileStr != "" {
-		pf, err := os.Open(patternFileStr)
+	files := []string{}
+	ptrn := ""
+	if patternFileStr == "" && regexStr == "" {
+		files = flag.Args()[1:]
+		ptrn = flag.Args()[0]
+	} else {
+		files = flag.Args()
+	}
+	for _, file := range files {
+		f, err := os.Open(file)
 		if err != nil {
-			panic(err)
+			log.Println(err)
 		}
-		scanner := bufio.NewScanner(pf)
-		for scanner.Scan() {
-			for _, file := range flag.Args() {
-				f, err := os.Open(file)
-				if err != nil {
-					panic(err)
-				}
-				if regexStr != "" {
-					checkWith(f, scanner.Text(), patternRegex)
-				} else {
+		if regexStr != "" {
+			checkWith(f, regexStr, patternRegex)
+		}
+		if patternFileStr != "" {
+			pf, err := os.Open(patternFileStr)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "gogrep: %s\n", err)
+			}
+			scanner := bufio.NewScanner(pf)
+			for scanner.Scan() {
+				for _, file := range files {
+					f, err := os.Open(file)
+					if err != nil {
+						fmt.Fprintf(os.Stderr, "gogrep: %s\n", err)
+					}
 					checkWith(f, scanner.Text(), pattern)
 				}
 			}
-		}
-		if err := scanner.Err(); err != nil {
-			fmt.Fprintf(os.Stderr, "readinf standard input: %s", err)
-		}
-		return
-	} else {
-		for _, file := range flag.Args() {
-			f, err := os.Open(file)
-			if err != nil {
-				panic(err)
+			if err := scanner.Err(); err != nil {
+				fmt.Fprintf(os.Stderr, "gogrep: %s\n", err)
 			}
-			if regexStr != "" {
-				checkWith(f, regexStr, patternRegex)
-			} else {
-				checkWith(f, flag.Args()[0], pattern)
-			}
+			return
 		}
+		checkWith(f, ptrn, pattern)
 	}
+
 }
