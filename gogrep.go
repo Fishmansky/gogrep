@@ -99,11 +99,11 @@ func patternRegex(s string, p string) bool {
 		if reg.MatchString(s) {
 			return true
 		}
-		return false
-	}
-	reg := regexp.MustCompile(p)
-	if reg.MatchString(s) {
-		return true
+	} else {
+		reg := regexp.MustCompile(p)
+		if reg.MatchString(s) {
+			return true
+		}
 	}
 	return false
 }
@@ -148,23 +148,26 @@ func main() {
 				}
 				if regexStr != "" {
 					checkWith(f, scanner.Text(), patternRegex)
+				} else {
+					checkWith(f, scanner.Text(), pattern)
 				}
-				checkWith(f, scanner.Text(), pattern)
 			}
 		}
 		if err := scanner.Err(); err != nil {
 			fmt.Fprintf(os.Stderr, "readinf standard input: %s", err)
 		}
 		return
-	}
-	for _, file := range flag.Args()[1:] {
-		f, err := os.Open(file)
-		if err != nil {
-			panic(err)
+	} else {
+		for _, file := range flag.Args() {
+			f, err := os.Open(file)
+			if err != nil {
+				panic(err)
+			}
+			if regexStr != "" {
+				checkWith(f, regexStr, patternRegex)
+			} else {
+				checkWith(f, flag.Args()[0], pattern)
+			}
 		}
-		if regexStr != "" {
-			checkWith(f, regexStr, patternRegex)
-		}
-		checkWith(f, flag.Args()[0], pattern)
 	}
 }
