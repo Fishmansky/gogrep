@@ -7,5 +7,5 @@ Grep clone written in GO
 Download, build and execute:
 
 ````
-gogrep [-i] [-e pattern | -f pattern file] [file ...]
+usage: gogrep [-i] [-h] [-H] [-e pattern | -f pattern file] [file ...]
 ````

@@ -63,7 +63,7 @@ var caseMap = map[byte]byte{
 	'Z': 'z',
 }
 
-var usage = `usage: gogrep [-i] [-e pattern | -f pattern file] [file ...]`
+var usage = `usage: gogrep [-i] [-h] [-H] [-e pattern | -f pattern file] [file ...]`
 
 func pattern(s string, p string) bool {
 	c := 0
@@ -112,62 +112,175 @@ func checkWith(f *os.File, str string, fn func(s string, p string) bool) {
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
 		if fn(scanner.Text(), str) {
-			fmt.Println(scanner.Text())
+			if hideFilename {
+				fmt.Printf("%s\n", scanner.Text())
+			} else {
+				fmt.Printf("%s:%s\n", f.Name(), scanner.Text())
+			}
 		}
 	}
 	if err := scanner.Err(); err != nil {
-		fmt.Fprintf(os.Stderr, "readinf standard input: %s", err)
+		fmt.Fprintf(os.Stderr, "gogrep: %s\n", err)
 	}
 }
 
 var caseIns bool
 var regexStr string
 var patternFileStr string
+var hideFilename bool
+var showFilename bool
 
 func main() {
 	flag.StringVar(&regexStr, "e", "", "find provided pattern")
+	flag.BoolVar(&hideFilename, "h", false, "omit filenames in output")
+	flag.BoolVar(&showFilename, "H", false, "print the file name for reach match")
 	flag.StringVar(&patternFileStr, "f", "", "specify input file with patterns")
 	flag.BoolVar(&caseIns, "i", false, "case-insensitive")
 	flag.Parse()
-	args := os.Args[1:]
-	if len(args) < 2 {
+	if len(flag.Args()) < 1 {
 		fmt.Println(usage)
 		return
 	}
-	if patternFileStr != "" {
-		pf, err := os.Open(patternFileStr)
+	files := []string{}
+	ptrn := ""
+	if patternFileStr == "" && regexStr == "" {
+		files = flag.Args()[1:]
+		ptrn = flag.Args()[0]
+	} else {
+		files = flag.Args()
+	}
+	if len(files) == 1 {
+		f, err := os.Open(files[0])
 		if err != nil {
-			panic(err)
+			fmt.Fprintf(os.Stderr, "gogrep: %s\n", err)
 		}
-		scanner := bufio.NewScanner(pf)
-		for scanner.Scan() {
-			for _, file := range flag.Args() {
-				f, err := os.Open(file)
-				if err != nil {
-					panic(err)
+		if regexStr != "" {
+			scanner := bufio.NewScanner(f)
+			for scanner.Scan() {
+				if patternRegex(scanner.Text(), regexStr) {
+					if showFilename {
+						fmt.Printf("%s:%s\n", f.Name(), scanner.Text())
+					} else {
+						fmt.Printf("%s\n", scanner.Text())
+					}
 				}
-				if regexStr != "" {
-					checkWith(f, scanner.Text(), patternRegex)
+			}
+			if err := scanner.Err(); err != nil {
+				fmt.Fprintf(os.Stderr, "gogrep: %s\n", err)
+			}
+		}
+		if patternFileStr != "" {
+			pf, err := os.Open(patternFileStr)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "gogrep: %s\n", err)
+			}
+			scanner := bufio.NewScanner(pf)
+			for scanner.Scan() {
+				for _, file := range files {
+					f, err := os.Open(file)
+					if err != nil {
+						fmt.Fprintf(os.Stderr, "gogrep: %s\n", err)
+					}
+					scanner := bufio.NewScanner(f)
+					for scanner.Scan() {
+						if pattern(scanner.Text(), ptrn) {
+							if showFilename {
+								fmt.Printf("%s:%s\n", f.Name(), scanner.Text())
+							} else {
+								fmt.Printf("%s\n", scanner.Text())
+							}
+						}
+					}
+					if err := scanner.Err(); err != nil {
+						fmt.Fprintf(os.Stderr, "gogrep: %s\n", err)
+					}
+				}
+			}
+			if err := scanner.Err(); err != nil {
+				fmt.Fprintf(os.Stderr, "gogrep: %s\n", err)
+			}
+			return
+		}
+		scanner := bufio.NewScanner(f)
+		for scanner.Scan() {
+			if pattern(scanner.Text(), ptrn) {
+				if showFilename {
+					fmt.Printf("%s:%s\n", f.Name(), scanner.Text())
 				} else {
-					checkWith(f, scanner.Text(), pattern)
+					fmt.Printf("%s\n", scanner.Text())
 				}
 			}
 		}
 		if err := scanner.Err(); err != nil {
-			fmt.Fprintf(os.Stderr, "readinf standard input: %s", err)
+			fmt.Fprintf(os.Stderr, "gogrep: %s\n", err)
 		}
-		return
 	} else {
-		for _, file := range flag.Args() {
+		for _, file := range files {
 			f, err := os.Open(file)
 			if err != nil {
-				panic(err)
+				fmt.Fprintf(os.Stderr, "gogrep: %s\n", err)
 			}
 			if regexStr != "" {
-				checkWith(f, regexStr, patternRegex)
-			} else {
-				checkWith(f, flag.Args()[0], pattern)
+				scanner := bufio.NewScanner(f)
+				for scanner.Scan() {
+					if patternRegex(scanner.Text(), regexStr) {
+						if hideFilename {
+							fmt.Printf("%s\n", scanner.Text())
+						} else {
+							fmt.Printf("%s:%s\n", f.Name(), scanner.Text())
+						}
+					}
+				}
+				if err := scanner.Err(); err != nil {
+					fmt.Fprintf(os.Stderr, "gogrep: %s\n", err)
+				}
+			}
+			if patternFileStr != "" {
+				pf, err := os.Open(patternFileStr)
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "gogrep: %s\n", err)
+				}
+				scanner := bufio.NewScanner(pf)
+				for scanner.Scan() {
+					for _, file := range files {
+						f, err := os.Open(file)
+						if err != nil {
+							fmt.Fprintf(os.Stderr, "gogrep: %s\n", err)
+						}
+						scanner := bufio.NewScanner(f)
+						for scanner.Scan() {
+							if pattern(scanner.Text(), ptrn) {
+								if hideFilename {
+									fmt.Printf("%s\n", scanner.Text())
+								} else {
+									fmt.Printf("%s:%s\n", f.Name(), scanner.Text())
+								}
+							}
+						}
+						if err := scanner.Err(); err != nil {
+							fmt.Fprintf(os.Stderr, "gogrep: %s\n", err)
+						}
+					}
+				}
+				if err := scanner.Err(); err != nil {
+					fmt.Fprintf(os.Stderr, "gogrep: %s\n", err)
+				}
+				return
+			}
+			scanner := bufio.NewScanner(f)
+			for scanner.Scan() {
+				if pattern(scanner.Text(), ptrn) {
+					if hideFilename {
+						fmt.Printf("%s\n", scanner.Text())
+					} else {
+						fmt.Printf("%s:%s\n", f.Name(), scanner.Text())
+					}
+				}
+			}
+			if err := scanner.Err(); err != nil {
+				fmt.Fprintf(os.Stderr, "gogrep: %s\n", err)
 			}
 		}
 	}
+
 }
