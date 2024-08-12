@@ -124,6 +124,106 @@ func checkWith(f *os.File, str string, fn func(s string, p string) bool) {
 	}
 }
 
+func printResult(file *os.File, scanner *bufio.Scanner) {
+	if showFilename {
+		fmt.Printf("%s:%s\n", file.Name(), scanner.Text())
+	} else if hideFilename {
+		fmt.Printf("%s\n", scanner.Text())
+	} else {
+		fmt.Printf("%s\n", scanner.Text())
+	}
+}
+
+func printResults(file *os.File, scanner *bufio.Scanner) {
+	if showFilename {
+		fmt.Printf("%s:%s\n", file.Name(), scanner.Text())
+	} else if hideFilename {
+		fmt.Printf("%s\n", scanner.Text())
+	} else {
+		fmt.Printf("%s:%s\n", file.Name(), scanner.Text())
+	}
+}
+
+func searchRegex(f *os.File) {
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		if patternRegex(scanner.Text(), regexStr) {
+			printResult(f, scanner)
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		fmt.Fprintf(os.Stderr, "gogrep: %s\n", err)
+	}
+}
+
+func searchPattern(files []string, ptrn string) {
+	pf, err := os.Open(patternFileStr)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "gogrep: %s\n", err)
+	}
+	scanner := bufio.NewScanner(pf)
+	for scanner.Scan() {
+		for _, file := range files {
+			f, err := os.Open(file)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "gogrep: %s\n", err)
+			}
+			scanner := bufio.NewScanner(f)
+			for scanner.Scan() {
+				if pattern(scanner.Text(), ptrn) {
+					printResult(f, scanner)
+				}
+			}
+			if err := scanner.Err(); err != nil {
+				fmt.Fprintf(os.Stderr, "gogrep: %s\n", err)
+			}
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		fmt.Fprintf(os.Stderr, "gogrep: %s\n", err)
+	}
+}
+
+func searchRegexes(f *os.File) {
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		if patternRegex(scanner.Text(), regexStr) {
+			printResults(f, scanner)
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		fmt.Fprintf(os.Stderr, "gogrep: %s\n", err)
+	}
+}
+
+func searchPatterns(files []string, ptrn string) {
+	pf, err := os.Open(patternFileStr)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "gogrep: %s\n", err)
+	}
+	scanner := bufio.NewScanner(pf)
+	for scanner.Scan() {
+		for _, file := range files {
+			f, err := os.Open(file)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "gogrep: %s\n", err)
+			}
+			scanner := bufio.NewScanner(f)
+			for scanner.Scan() {
+				if pattern(scanner.Text(), ptrn) {
+					printResults(f, scanner)
+				}
+			}
+			if err := scanner.Err(); err != nil {
+				fmt.Fprintf(os.Stderr, "gogrep: %s\n", err)
+			}
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		fmt.Fprintf(os.Stderr, "gogrep: %s\n", err)
+	}
+}
+
 var caseIns bool
 var regexStr string
 var patternFileStr string
@@ -149,66 +249,24 @@ func main() {
 	} else {
 		files = flag.Args()
 	}
+
 	if len(files) == 1 {
 		f, err := os.Open(files[0])
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "gogrep: %s\n", err)
 		}
 		if regexStr != "" {
-			scanner := bufio.NewScanner(f)
-			for scanner.Scan() {
-				if patternRegex(scanner.Text(), regexStr) {
-					if showFilename {
-						fmt.Printf("%s:%s\n", f.Name(), scanner.Text())
-					} else {
-						fmt.Printf("%s\n", scanner.Text())
-					}
-				}
-			}
-			if err := scanner.Err(); err != nil {
-				fmt.Fprintf(os.Stderr, "gogrep: %s\n", err)
-			}
+			searchRegex(f)
+			return
 		}
 		if patternFileStr != "" {
-			pf, err := os.Open(patternFileStr)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "gogrep: %s\n", err)
-			}
-			scanner := bufio.NewScanner(pf)
-			for scanner.Scan() {
-				for _, file := range files {
-					f, err := os.Open(file)
-					if err != nil {
-						fmt.Fprintf(os.Stderr, "gogrep: %s\n", err)
-					}
-					scanner := bufio.NewScanner(f)
-					for scanner.Scan() {
-						if pattern(scanner.Text(), ptrn) {
-							if showFilename {
-								fmt.Printf("%s:%s\n", f.Name(), scanner.Text())
-							} else {
-								fmt.Printf("%s\n", scanner.Text())
-							}
-						}
-					}
-					if err := scanner.Err(); err != nil {
-						fmt.Fprintf(os.Stderr, "gogrep: %s\n", err)
-					}
-				}
-			}
-			if err := scanner.Err(); err != nil {
-				fmt.Fprintf(os.Stderr, "gogrep: %s\n", err)
-			}
+			searchPattern(files, ptrn)
 			return
 		}
 		scanner := bufio.NewScanner(f)
 		for scanner.Scan() {
 			if pattern(scanner.Text(), ptrn) {
-				if showFilename {
-					fmt.Printf("%s:%s\n", f.Name(), scanner.Text())
-				} else {
-					fmt.Printf("%s\n", scanner.Text())
-				}
+				printResult(f, scanner)
 			}
 		}
 		if err := scanner.Err(); err != nil {
@@ -221,60 +279,17 @@ func main() {
 				fmt.Fprintf(os.Stderr, "gogrep: %s\n", err)
 			}
 			if regexStr != "" {
-				scanner := bufio.NewScanner(f)
-				for scanner.Scan() {
-					if patternRegex(scanner.Text(), regexStr) {
-						if hideFilename {
-							fmt.Printf("%s\n", scanner.Text())
-						} else {
-							fmt.Printf("%s:%s\n", f.Name(), scanner.Text())
-						}
-					}
-				}
-				if err := scanner.Err(); err != nil {
-					fmt.Fprintf(os.Stderr, "gogrep: %s\n", err)
-				}
+				searchRegexes(f)
+				return
 			}
 			if patternFileStr != "" {
-				pf, err := os.Open(patternFileStr)
-				if err != nil {
-					fmt.Fprintf(os.Stderr, "gogrep: %s\n", err)
-				}
-				scanner := bufio.NewScanner(pf)
-				for scanner.Scan() {
-					for _, file := range files {
-						f, err := os.Open(file)
-						if err != nil {
-							fmt.Fprintf(os.Stderr, "gogrep: %s\n", err)
-						}
-						scanner := bufio.NewScanner(f)
-						for scanner.Scan() {
-							if pattern(scanner.Text(), ptrn) {
-								if hideFilename {
-									fmt.Printf("%s\n", scanner.Text())
-								} else {
-									fmt.Printf("%s:%s\n", f.Name(), scanner.Text())
-								}
-							}
-						}
-						if err := scanner.Err(); err != nil {
-							fmt.Fprintf(os.Stderr, "gogrep: %s\n", err)
-						}
-					}
-				}
-				if err := scanner.Err(); err != nil {
-					fmt.Fprintf(os.Stderr, "gogrep: %s\n", err)
-				}
+				searchPatterns(files, ptrn)
 				return
 			}
 			scanner := bufio.NewScanner(f)
 			for scanner.Scan() {
 				if pattern(scanner.Text(), ptrn) {
-					if hideFilename {
-						fmt.Printf("%s\n", scanner.Text())
-					} else {
-						fmt.Printf("%s:%s\n", f.Name(), scanner.Text())
-					}
+					printResults(f, scanner)
 				}
 			}
 			if err := scanner.Err(); err != nil {
